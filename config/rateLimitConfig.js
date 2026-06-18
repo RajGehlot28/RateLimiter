@@ -1,5 +1,5 @@
-// This file will export the variables like - TIME_WINDOW and MAX_LIMIT
 module.exports = {
-    TIME_WINDOW : 60 * 1000, // 60 seconds
-    MAX_LIMIT : 5 // maximum requests per TIME_WINDOW
-}
+    TIME_WINDOW : 60 * 1000, // 60 seconds (in milliseconds)
+    MAX_LIMIT : 5,           // maximum requests per TIME_WINDOW
+    REDIS_URL: process.env.REDIS_URL // Default local Redis fallback URL
+};
