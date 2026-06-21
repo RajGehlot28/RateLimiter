@@ -35,7 +35,7 @@ module.exports = async (req, res, next) => {
 
         next();
     } catch(error) {
-        console.error("Rate Limiter Internal Processing Failure:", error);
+        console.error("Rate limiter internal processing failure:", error);
         // Fail-safe open: fallback gracefully to next execution chain step if DB faults out
         next();
     }

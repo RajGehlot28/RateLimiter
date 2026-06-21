@@ -2,7 +2,6 @@ require('dotenv').config();
 const express = require('express');
 const redisClient = require('./config/redisClient');
 const rateLimiter = require('./middleware/rateLimiter');
-const apiRoutes = require("./routes/apiRoutes");
 
 const app = express();
 const PORT = process.env.PORT;
@@ -19,11 +18,9 @@ async function initializeRedis() {
 }
 initializeRedis();
 
-// Applying rate limiter middleware to all routes
-app.use(rateLimiter);
-
-// Routes
-app.use("/api", apiRoutes);
+app.get("/api/protected", rateLimiter, (req, res) => {
+    return res.status(200).render('success.ejs');
+});
 
 app.listen(PORT, () => {
     console.log(`Server is listening on ${PORT}`);
