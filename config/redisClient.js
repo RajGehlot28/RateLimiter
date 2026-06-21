@@ -1,8 +1,7 @@
 const redis = require('redis');
-const { REDIS_URL } = require('./rateLimitConfig');
 
 const redisClient = redis.createClient({
-    url: REDIS_URL
+    url: process.env.REDIS_URL
 });
 
 redisClient.on('error', (err) => {

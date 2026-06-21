@@ -8,7 +8,7 @@ const PORT = process.env.PORT;
 
 app.set("view engine", "ejs");
 
-// nitialize and connect Redis client prior to handling application requests
+// initialize and connect Redis client prior to handling application requests
 async function initializeRedis() {
     try {
         await redisClient.connect();
