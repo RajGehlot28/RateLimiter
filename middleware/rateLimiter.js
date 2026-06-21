@@ -19,24 +19,23 @@ module.exports = async (req, res, next) => {
         // Step 1: Evict old timestamp elements older than current window cutoff boundary
         pipeline.zRemRangeByScore(redisKey, '-inf', `(${windowCutoff}`);
         
-        // Step 2: Fetch count tracking size of total remaining entries in active window
+        // Step 2: Record valid entry stamp value inside user's chronological sorted sequence tracking
+        await redisClient.zAdd(redisKey, { score: currentTime, value: String(currentTime) });
+        
+        // Step 3: Fetch count tracking size of total remaining entries in active window
         pipeline.zCard(redisKey);
         
         const responses = await pipeline.exec();
         const activeRequestsCount = responses[1]; // Result of the zCard command query execution
 
-        if(activeRequestsCount >= MAX_LIMIT) {
+        if(activeRequestsCount > MAX_LIMIT) {
             // Threshold breach detected -> Throttling block intercepts processing flow
             return res.status(429).render('rateLimitExceed.ejs');
         }
 
-        // Step 3: Record valid entry stamp value inside user's chronological sorted sequence tracking
-        await redisClient.zAdd(redisKey, { score: currentTime, value: String(currentTime) });
-
         next();
     } catch(error) {
         console.error("Rate limiter internal processing failure:", error);
-        // Fail-safe open: fallback gracefully to next execution chain step if DB faults out
         next();
     }
 };
