@@ -11,31 +11,39 @@ module.exports = async (req, res, next) => {
     const redisKey = `rate_limit:${userId}`;
 
     try {
-        // Execute a pipeline transaction block to guarantee atomic execution 
-        // and avoid race conditions across multi-stage network loops.
-        
-        const pipeline = redisClient.multi();
-        
-        // Step 1: Evict old timestamp elements older than current window cutoff boundary
+        // to calculate performance time
+        const start = performance.now();
+
+        // created a pipeline in which commands will stored in queue and run one by one
+        const pipeline = await redisClient.multi();
+
+        // ZSET is a sorted set of redis
+
+        // removing requests older than windowCutOff from ZSET - (start from -inf to windowCutOff)
         pipeline.zRemRangeByScore(redisKey, '-inf', `(${windowCutoff}`);
         
-        // Step 2: Record valid entry stamp value inside user's chronological sorted sequence tracking
-        await redisClient.zAdd(redisKey, { score: currentTime, value: String(currentTime) });
+        // adding current request time-stamp to ZSET
+        pipeline.zAdd(redisKey, { score: currentTime, value: String(currentTime) });
         
-        // Step 3: Fetch count tracking size of total remaining entries in active window
+        // counting number of requests in current active window
         pipeline.zCard(redisKey);
         
-        const responses = await pipeline.exec();
-        const activeRequestsCount = responses[1]; // Result of the zCard command query execution
+        // sending and executing all three above commands of pipeline on redis server
+        const responses = await pipeline.exec(); // return array of results for all commands
+        const activeRequestsCount = responses[2]; // count is stored at second index of responses
+
+        // calculating performance time
+        const end = performance.now();
+        console.log(`Middleware latency: ${end - start} ms`);
 
         if(activeRequestsCount > MAX_LIMIT) {
-            // Threshold breach detected -> Throttling block intercepts processing flow
+            // if user exceed limit then render rateLimitExceed page
             return res.status(429).render('rateLimitExceed.ejs');
         }
+        next(); // if everything ok then sending user's request to next middleware or route controller
 
-        next();
     } catch(error) {
         console.error("Rate limiter internal processing failure:", error);
-        next();
+        next(); // if redis fail then user will not hang
     }
 };
