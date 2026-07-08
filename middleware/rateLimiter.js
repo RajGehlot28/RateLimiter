@@ -36,14 +36,31 @@ module.exports = async (req, res, next) => {
         const end = performance.now();
         console.log(`Middleware latency: ${end - start} ms`);
 
+        const remaining = Math.max(0, MAX_LIMIT - activeRequestsCount);
+
+        // finding 1st request in current window -> from index 0 to 0
+        const oldestRequests = await redisClient.zRangeWithScores(redisKey, 0, 0);
+        const oldestTimestamp = oldestRequests[0].score;
+        const windowClearTime = oldestTimestamp + TIME_WINDOW; // time when window will be clear -> can send more request
+        // calculating time left to window reset
+        const resetTime = Math.ceil((windowClearTime - currentTime) / 1000);
+
+        // setting response headers
+        res.setHeader('RateLimit', MAX_LIMIT);
+        res.setHeader('Request-Remaining', remaining);
+
         if(activeRequestsCount > MAX_LIMIT) {
             // if user exceed limit then render rateLimitExceed page
+            res.setHeader('Retry-After', resetTime);
             return res.status(429).render('rateLimitExceed.ejs');
         }
         next(); // if everything ok then sending user's request to next middleware or route controller
 
     } catch(error) {
-        console.error("Rate limiter internal processing failure:", error);
-        next(); // if redis fail then user will not hang
+        // Rate limiter processing failure
+        return res.status(500).json({
+            success: false,
+            message: "We are currently unable to process your request. Please try again shortly."
+        });
     }
 };
